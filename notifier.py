@@ -26,10 +26,11 @@ def _send(text: str, parse_mode: str = 'HTML'):
 
 def send_startup():
     _send(
-        '🤖 <b>Job Hunter activo</b> — Torremolinos + 20 km\n\n'
+        '🤖 <b>Precari_bot activo</b> — Torremolinos + 20 km\n\n'
         '📦 Almacén  🍽️ Hostelería  🛵 Reparto  📞 Telemarketing\n\n'
-        'Busco cada 30 min en Indeed, InfoJobs y Turijobs.\n'
-        'Resumen diario a las 8:00. ¡Que salga pronto! 💪'
+        '🔍 Busco cada 30 min en Indeed, InfoJobs, Turijobs y LinkedIn.\n'
+        '⚡ Auto-apply activado en LinkedIn Easy Apply.\n'
+        '📊 Resumen diario a las 9:00. ¡Que salga pronto! 💪'
     )
 
 
