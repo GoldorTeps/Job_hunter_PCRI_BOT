@@ -29,9 +29,6 @@ def _is_active_hour() -> bool:
 
 
 def check_jobs():
-    if not _is_active_hour():
-        print(f'[{_now()}] Fuera de horario, saltando.')
-        return
     print(f'[{_now()}] Buscando...')
     try:
         jobs    = run_all_searches()
@@ -43,8 +40,9 @@ def check_jobs():
                 mark_seen(job)                    # siempre marcar para no reprocesar
                 if enriched is None:              # categoría sin CV → descartar
                     continue
-                send_job_alert(enriched)
-                track(enriched)                   # registrar candidatura notificada
+                if _is_active_hour():             # notificar solo en horario laboral
+                    send_job_alert(enriched)
+                track(enriched)                   # registrar siempre
                 new_jobs.append(enriched)
                 time.sleep(0.8)
 
