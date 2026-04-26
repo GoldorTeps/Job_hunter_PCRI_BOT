@@ -10,7 +10,6 @@ from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 from config import SEARCHES
 from tracker import track
-from notifier import send_message  # alias para enviar mensajes simples
 
 LINKEDIN_COOKIE = os.getenv('LINKEDIN_COOKIE', '')
 MAX_APPLIES_PER_RUN = int(os.getenv('MAX_APPLIES_PER_RUN', '10'))
