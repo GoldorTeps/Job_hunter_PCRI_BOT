@@ -11,6 +11,7 @@ from scraper import run_all_searches
 from notifier import send_startup, send_job_alert, send_daily_digest, send_error
 from ai_assistant import enrich_job
 from tracker import init_tracker, track
+from apply_linkedin import run_auto_apply
 
 
 def _is_active_hour() -> bool:
@@ -48,6 +49,11 @@ def check_jobs():
                 time.sleep(0.8)
 
         print(f'[{_now()}] {len(new_jobs)} nuevas / {len(jobs)} encontradas')
+
+        # Auto-apply LinkedIn Easy Apply
+        if new_jobs:
+            run_auto_apply(new_jobs)
+
     except Exception as e:
         err = traceback.format_exc()
         print(f'[ERROR] {err}')

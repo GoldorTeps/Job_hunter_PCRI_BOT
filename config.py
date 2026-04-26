@@ -3,6 +3,7 @@ import os
 TELEGRAM_TOKEN   = os.getenv('TELEGRAM_TOKEN', '')
 TELEGRAM_CHAT_ID = os.getenv('TELEGRAM_CHAT_ID', '')
 DATABASE_URL     = os.getenv('DATABASE_URL', '')
+LINKEDIN_COOKIE  = os.getenv('LINKEDIN_COOKIE', '')
 
 CHECK_INTERVAL_MIN = int(os.getenv('CHECK_INTERVAL_MINUTES', '30'))
 ACTIVE_HOUR_START  = int(os.getenv('ACTIVE_HOUR_START', '9'))    # 09:00
