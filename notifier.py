@@ -79,7 +79,8 @@ def send_daily_digest(jobs_by_category: dict, db_stats: dict):
             continue
         lines.append(f'\n{cat}  <b>({len(jobs)})</b>')
         for job in jobs[:4]:
-            lines.append(f"  • <a href='{job[\"url\"]}'>{job['title']}</a> — {job['company']}")
+            url, title, company = job['url'], job['title'], job['company']
+            lines.append(f"  • <a href='{url}'>{title}</a> — {company}")
         if len(jobs) > 4:
             lines.append(f'  <i>…y {len(jobs) - 4} más</i>')
 
