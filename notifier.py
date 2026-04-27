@@ -28,7 +28,7 @@ def send_startup():
     _send(
         '🤖 <b>Precari_bot activo</b> — Torremolinos + 20 km\n\n'
         '📦 Almacén  🍽️ Hostelería  🛵 Reparto  📞 Telemarketing\n\n'
-        '🔍 Busco cada 30 min en Indeed, InfoJobs, Turijobs y LinkedIn.\n'
+        '🔍 Busco cada 30 min en Indeed, Turijobs, Trabajos.com, SAE y LinkedIn.\n'
         '⚡ Auto-apply activado en LinkedIn Easy Apply.\n'
         '📊 Resumen diario a las 9:00. ¡Que salga pronto! 💪'
     )
