@@ -150,6 +150,8 @@ def scrape_turijobs(keyword: str, category: str) -> list:
 
             if not title or _is_blacklisted(title):
                 continue
+            if 'málaga' not in loc.lower() and 'malaga' not in loc.lower():
+                continue
 
             jobs.append({
                 'id':       _job_id(link),
