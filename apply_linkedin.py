@@ -9,12 +9,10 @@ import random
 from playwright.sync_api import sync_playwright, TimeoutError as PWTimeout
 
 from config import SEARCHES
-from tracker import track
 
-LINKEDIN_COOKIE = os.getenv('LINKEDIN_COOKIE', '')
+LINKEDIN_COOKIE     = os.getenv('LINKEDIN_COOKIE', '')
 MAX_APPLIES_PER_RUN = int(os.getenv('MAX_APPLIES_PER_RUN', '10'))
 
-# Selectores LinkedIn Easy Apply (pueden cambiar con updates de LinkedIn)
 SEL_EASY_APPLY   = 'button.jobs-apply-button:has-text("Easy Apply"), button.jobs-apply-button:has-text("Solicitud sencilla")'
 SEL_NEXT         = 'button[aria-label="Continuar a la siguiente sección"], button[aria-label="Continue to next step"]'
 SEL_SUBMIT       = 'button[aria-label="Enviar solicitud"], button[aria-label="Submit application"]'
@@ -51,7 +49,6 @@ def _setup_context(playwright):
 
 
 def _fill_cover_letter(page, text: str) -> bool:
-    """Intenta rellenar el campo de carta de presentación si existe."""
     try:
         field = page.query_selector(SEL_COVER_LETTER)
         if field:
@@ -65,15 +62,8 @@ def _fill_cover_letter(page, text: str) -> bool:
 
 
 def _answer_screening_questions(page, cv_text: str):
-    """
-    Responde preguntas de cribado comunes.
-    Estrategia conservadora: sí a trabajo en España, no a relocation, etc.
-    """
     try:
-        # Checkboxes y radios simples
-        for label_text in [
-            'Sí', 'Yes', 'España', 'Autorizado', 'Tiempo completo', 'Full-time'
-        ]:
+        for label_text in ['Sí', 'Yes', 'España', 'Autorizado', 'Tiempo completo', 'Full-time']:
             labels = page.query_selector_all(f'label:has-text("{label_text}")')
             for label in labels[:1]:
                 try:
@@ -82,7 +72,6 @@ def _answer_screening_questions(page, cv_text: str):
                 except Exception:
                     pass
 
-        # Inputs numéricos de experiencia — extraemos del CV si es posible
         numeric_inputs = page.query_selector_all('input[type="text"][id*="experience"], input[type="number"]')
         for inp in numeric_inputs[:3]:
             try:
@@ -97,21 +86,12 @@ def _answer_screening_questions(page, cv_text: str):
 
 
 def _navigate_form(page, cover_letter: str, cv_text: str) -> bool:
-    """
-    Navega los pasos del formulario Easy Apply.
-    Devuelve True si llega al submit, False si hay algún problema.
-    """
     max_steps = 8
     for step in range(max_steps):
         _random_delay(1.0, 2.0)
-
-        # Rellenar carta si aparece
         _fill_cover_letter(page, cover_letter)
-
-        # Responder preguntas
         _answer_screening_questions(page, cv_text)
 
-        # ¿Hay botón de submit?
         submit_btn = page.query_selector(SEL_SUBMIT)
         if submit_btn and submit_btn.is_visible():
             _random_delay(0.8, 1.5)
@@ -119,36 +99,30 @@ def _navigate_form(page, cover_letter: str, cv_text: str) -> bool:
             _random_delay(1.5, 2.5)
             return True
 
-        # ¿Hay botón de siguiente?
         next_btn = page.query_selector(SEL_NEXT)
         if next_btn and next_btn.is_visible():
             next_btn.click()
             continue
 
-        # Sin botones reconocibles — salir
         print(f'[Apply] Paso {step+1}: sin botón siguiente ni submit.')
         break
 
     return False
 
 
-def apply_to_job(job: dict) -> bool:
+def apply_to_job(job: dict) -> tuple[bool, str]:
     """
     Aplica a una oferta de LinkedIn usando Easy Apply.
-    Devuelve True si la candidatura se envió correctamente.
+    Devuelve (success: bool, reason: str).
     """
     if not LINKEDIN_COOKIE:
-        print('[Apply] Sin LINKEDIN_COOKIE configurada.')
-        return False
+        return False, 'LINKEDIN_COOKIE no configurada'
 
     cover_letter = job.get('cover_letter', '')
     cv_text = ''
     try:
-        cv_path = os.path.join(
-            os.path.dirname(__file__), 'cvs', f'{job.get("cv_name", "mozo")}.txt'
-        )
-        with open(cv_path, encoding='utf-8') as f:
-            cv_text = f.read()
+        from ai_assistant import CV_TEXTS
+        cv_text = CV_TEXTS.get(job.get('cv_name', 'mozo'), '')
     except Exception:
         pass
 
@@ -157,31 +131,24 @@ def apply_to_job(job: dict) -> bool:
             browser, context = _setup_context(p)
             page = context.new_page()
 
-            # Abrir oferta
             page.goto(job['url'], timeout=20000)
             _random_delay(1.5, 3.0)
 
-            # ¿Ya aplicado?
             if page.query_selector(SEL_ALREADY):
-                print(f'[Apply] Ya aplicado: {job["title"]}')
                 browser.close()
-                return False
+                return False, 'Ya aplicado anteriormente'
 
-            # ¿Tiene Easy Apply?
             try:
                 easy_btn = page.wait_for_selector(SEL_EASY_APPLY, timeout=6000)
             except PWTimeout:
-                print(f'[Apply] Sin Easy Apply: {job["title"]}')
                 browser.close()
-                return False
+                return False, 'Easy Apply no disponible en esta oferta'
 
             easy_btn.click()
             _random_delay(1.5, 2.5)
 
-            # Navegar el formulario
             success = _navigate_form(page, cover_letter, cv_text)
 
-            # Cerrar modal de confirmación si aparece
             try:
                 dismiss = page.query_selector(SEL_DISMISS)
                 if dismiss:
@@ -193,44 +160,30 @@ def apply_to_job(job: dict) -> bool:
 
             if success:
                 print(f'[Apply] ✅ Aplicado: {job["title"]} — {job["company"]}')
-                track(job, estado='aplicada')
-                _notify_applied(job)
+                return True, ''
             else:
                 print(f'[Apply] ⚠️ Formulario no completado: {job["title"]}')
-
-            return success
+                return False, 'Formulario no completado'
 
     except Exception as e:
         print(f'[Apply] Error en {job["title"]}: {e}')
-        return False
+        return False, str(e)
 
 
-def _notify_applied(job: dict):
-    """Manda confirmación a Telegram cuando se aplica con éxito."""
-    from notifier import _send
-    _send(
-        f"✅ <b>Candidatura enviada</b>\n\n"
-        f"<b>{job['title']}</b>\n"
-        f"🏢 {job['company']}\n"
-        f"📍 {job['location']}\n"
-        f"📄 {job.get('cv_name', '')}\n"
-        f"🔗 <a href='{job['url']}'>Ver en LinkedIn</a>"
-    )
-
-
-def run_auto_apply(jobs: list) -> int:
+def run_auto_apply(jobs: list) -> list[dict]:
     """
     Recorre la lista de jobs e intenta aplicar a los de LinkedIn con Easy Apply.
-    Respeta el límite MAX_APPLIES_PER_RUN.
-    Devuelve el número de candidaturas enviadas.
+    Devuelve lista de dicts: {'job': job_dict, 'applied': bool, 'reason': str}
     """
     if not LINKEDIN_COOKIE:
         print('[Apply] LINKEDIN_COOKIE no configurada — auto-apply desactivado.')
-        return 0
+        return []
 
-    applied = 0
+    results = []
+    applied_count = 0
+
     for job in jobs:
-        if applied >= MAX_APPLIES_PER_RUN:
+        if applied_count >= MAX_APPLIES_PER_RUN:
             print(f'[Apply] Límite de {MAX_APPLIES_PER_RUN} candidaturas alcanzado.')
             break
 
@@ -239,10 +192,12 @@ def run_auto_apply(jobs: list) -> int:
         if not job.get('cv_name'):
             continue
 
-        success = apply_to_job(job)
-        if success:
-            applied += 1
-            _random_delay(8, 15)   # pausa larga entre aplicaciones
+        success, reason = apply_to_job(job)
+        results.append({'job': job, 'applied': success, 'reason': reason})
 
-    print(f'[Apply] Sesión completada: {applied} candidaturas enviadas.')
-    return applied
+        if success:
+            applied_count += 1
+            _random_delay(8, 15)
+
+    print(f'[Apply] Sesión completada: {applied_count} candidaturas enviadas.')
+    return results

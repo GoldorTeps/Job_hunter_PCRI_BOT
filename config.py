@@ -1,3 +1,6 @@
+from dotenv import load_dotenv
+load_dotenv()
+
 import os
 
 TELEGRAM_TOKEN   = os.getenv('TELEGRAM_TOKEN', '')
@@ -37,6 +40,12 @@ SEARCHES = [
         'category': '📞 Telemarketing',
         'indeed':   ['teleoperador', 'call center', 'atencion telefonica'],
         'infojobs': ['teleoperador', 'telemarketing'],
+        'turijobs': [],
+    },
+    {
+        'category': '🗂️ Administración',
+        'indeed':   ['auxiliar administrativo', 'administrativo', 'recepcionista oficina', 'aux administrativo'],
+        'infojobs': ['auxiliar administrativo', 'administrativo'],
         'turijobs': [],
     },
 ]

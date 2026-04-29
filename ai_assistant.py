@@ -11,28 +11,51 @@ def _get_client() -> OpenAI:
 
 
 # ── Cargar CVs ─────────────────────────────────────────────────────────────
+CV_PDF_FILES = {
+    'mozo':          'CV_Mozo1.pdf',
+    'camarero':      'Cv_Camarero.pdf',
+    'conductor':     'CV_conductor_repartidor.pdf',
+    'telemarketing': 'Cv_Telemarketing.pdf',
+    'admin':         'CV_AuxAdministrativo.pdf',
+}
+
 def _load_cv(name: str) -> str:
-    path = os.path.join(os.path.dirname(__file__), 'cvs', f'{name}.txt')
+    filename = CV_PDF_FILES.get(name)
+    if not filename:
+        return f'CV de {name} no disponible.'
+    path = os.path.join(os.path.dirname(__file__), 'cvs', filename)
     try:
-        with open(path, encoding='utf-8') as f:
-            return f.read().strip()
-    except FileNotFoundError:
+        import pdfplumber
+        with pdfplumber.open(path) as pdf:
+            return '\n'.join(p.extract_text() or '' for p in pdf.pages).strip()
+    except Exception as e:
+        print(f'[AI] Error leyendo CV {filename}: {e}')
         return f'CV de {name} no disponible.'
 
 
-CV_TEXTS = {
-    'mozo':          _load_cv('mozo'),
-    'admin':         _load_cv('admin'),
-    'telemarketing': _load_cv('telemarketing'),
-}
+CV_TEXTS = {name: _load_cv(name) for name in CV_PDF_FILES}
 
 # Qué CV usar según la categoría del job
 CATEGORY_CV = {
-    '📦 Almacén':      'mozo',
-    '🍽️ Hostelería':  'mozo',
-    '🛵 Reparto':      'mozo',
-    '📞 Telemarketing':'telemarketing',
+    '📦 Almacén':       'mozo',
+    '🍽️ Hostelería':   'camarero',
+    '🛵 Reparto':       'conductor',
+    '📞 Telemarketing': 'telemarketing',
+    '🗂️ Administración':'admin',
 }
+
+# Términos que indican jornada de 40h (solo se aplica a telemarketing)
+_FULL_TIME_TERMS = ['40 hora', '40h', 'jornada completa', 'tiempo completo', 'full time', 'full-time']
+_PART_TIME_TERMS = ['30 hora', '30h', 'media jornada', 'parcial', 'part time', 'part-time']
+
+def _is_telemarketing_ok(job: dict) -> bool:
+    """Descarta ofertas de telemarketing a 40h si no mencionan expresamente 30h."""
+    haystack = (job.get('title', '') + ' ' + job.get('summary', '')).lower()
+    has_full  = any(t in haystack for t in _FULL_TIME_TERMS)
+    has_part  = any(t in haystack for t in _PART_TIME_TERMS)
+    if has_full and not has_part:
+        return False
+    return True
 
 
 def select_cv(job: dict) -> str | None:
@@ -89,6 +112,10 @@ def enrich_job(job: dict) -> dict | None:
     cv_name = select_cv(job)
     if cv_name is None:
         print(f'[AI] Descartado (sin CV para categoría "{job.get("category")}"): {job["title"]}')
+        return None
+
+    if job.get('category') == '📞 Telemarketing' and not _is_telemarketing_ok(job):
+        print(f'[AI] Descartado (telemarketing 40h): {job["title"]}')
         return None
 
     job['cv_name']      = cv_name
