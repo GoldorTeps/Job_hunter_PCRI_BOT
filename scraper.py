@@ -6,7 +6,7 @@ import feedparser
 import requests
 from bs4 import BeautifulSoup
 
-from config import BLACKLIST, LOCATION, RADIUS_KM, PROVINCE, SEARCHES
+from config import BLACKLIST, LOCATION, RADIUS_KM, PROVINCE, SEARCHES, LOCATION_BLOCKLIST
 
 HEADERS = {
     'User-Agent': (
@@ -31,6 +31,10 @@ def _clean(text: str) -> str:
 def _normalize(text: str) -> str:
     return unicodedata.normalize('NFKD', text.lower()).encode('ascii', 'ignore').decode()
 
+def _is_blocked_location(loc: str) -> bool:
+    loc_n = _normalize(loc)
+    return any(blocked in loc_n for blocked in LOCATION_BLOCKLIST)
+
 def _match_category(title: str) -> str:
     t = _normalize(title)
     for search in SEARCHES:
@@ -39,9 +43,16 @@ def _match_category(title: str) -> str:
             kw_n = _normalize(kw)
             if kw_n in t:
                 return search['category']
-            for word in kw_n.split():
-                if len(word) >= 5 and word in t:
-                    return search['category']
+            sig = [w for w in kw_n.split() if len(w) >= 5]
+            if not sig:
+                continue
+            # Keyword de una sola palabra relevante → basta con que esté en el título
+            # Keyword multipalabra → exigir que TODAS las palabras relevantes estén presentes
+            # (evita que "atencion" de "atencion telefonica" match "atencion temprana")
+            if len(sig) == 1 and sig[0] in t:
+                return search['category']
+            if len(sig) >= 2 and all(w in t for w in sig):
+                return search['category']
     return ''
 
 
@@ -67,6 +78,8 @@ def scrape_indeed(keyword: str, category: str) -> list:
             if not title or not link:
                 continue
             if _is_blacklisted(title + ' ' + summary):
+                continue
+            if _is_blocked_location(loc):
                 continue
 
             jobs.append({
@@ -169,6 +182,8 @@ def scrape_turijobs(keyword: str, category: str) -> list:
                 continue
             if 'málaga' not in loc.lower() and 'malaga' not in loc.lower():
                 continue
+            if _is_blocked_location(loc):
+                continue
 
             jobs.append({
                 'id':       _job_id(link),
@@ -213,6 +228,8 @@ def scrape_trabajos() -> list:
             if 'málaga' not in loc.lower() and 'malaga' not in loc.lower():
                 continue
             if _is_blacklisted(title):
+                continue
+            if _is_blocked_location(loc):
                 continue
 
             category = _match_category(title)
@@ -268,6 +285,8 @@ def scrape_sae() -> list:
             )
 
             if not title or _is_blacklisted(title):
+                continue
+            if _is_blocked_location(loc):
                 continue
 
             category = _match_category(title)

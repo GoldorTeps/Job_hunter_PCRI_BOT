@@ -50,6 +50,13 @@ SEARCHES = [
     },
 ]
 
+# Municipios fuera de la zona de desplazamiento (Torremolinos + costa hasta Mijas)
+LOCATION_BLOCKLIST = [
+    'marbella', 'estepona', 'ronda', 'velez', 'vélez',
+    'nerja', 'antequera', 'manilva', 'casares', 'torrox',
+    'frigiliana', 'competa', 'archidona', 'coin', 'coín',
+]
+
 BLACKLIST = [
     'multinivel', 'mlm', 'sin sueldo fijo', 'solo comisiones',
     'inversión inicial', 'autónomo obligatorio', 'autonomo obligatorio',
